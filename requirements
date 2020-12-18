@@ -1,19 +1,2 @@
-import streamlit as st 
-from nba_api.stats.static import teams
-from nba_api.stats.static import players
-from nba_api.stats.endpoints import commonplayerinfo
-from nba_api.stats.endpoints import shotchartdetail
-from nba_api.stats.endpoints import playercareerstats
-from nba_api.stats.endpoints import leaguestandings
-from nba_api.stats.endpoints import playercareerstats
-from csv import reader
-import csv 
-import json
-import datetime
-import numpy as np 
-import pandas as pd 
-import matplotlib.pyplot as plt 
-import seaborn as sns 
-from matplotlib import cm 
-from matplotlib.patches import Circle, Rectangle, Arc, ConnectionPatch
-from matplotlib.patches import Polygon
+pandas
+streamlit
