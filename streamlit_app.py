@@ -6,6 +6,11 @@ from nba_api.stats.endpoints import shotchartdetail
 from nba_api.stats.endpoints import playercareerstats
 from nba_api.stats.endpoints import leaguestandings
 from nba_api.stats.endpoints import playercareerstats
+from nba_api.stats.endpoints import drafthistory
+from nba_api.stats.endpoints import alltimeleadersgrids
+from nba_api.stats.endpoints import boxscoresummaryv2
+from nba_api.stats.endpoints import teamgamelog
+from nba_api.stats.endpoints import scoreboardv2
 from csv import reader
 import csv 
 import json
@@ -17,11 +22,53 @@ import seaborn as sns
 from matplotlib import cm 
 from matplotlib.patches import Circle, Rectangle, Arc, ConnectionPatch
 from matplotlib.patches import Polygon
+from datetime import datetime
+import pandas as pd
 
 st.sidebar.title(":basketball: National Basketball Association")
-page = st.sidebar.selectbox("Please Select One",('Team Contract Situation','NBA Contracts','Player Information', 'Player Statistics', 'Player Shot Chart', 'NBA History', 'Franchise History','Draft History','League Standings','About'))
+page = st.sidebar.selectbox("Please Select One",('NBA Scoreboard','Team Contract Situation','NBA Contracts','Player Information', 'Player Statistics', 'Player Shot Chart', 'NBA History', 'Franchise History','Draft History','League Standings','About'))
 
-if page == 'Team Contract Situation':
+if page == 'NBA Scoreboard':
+    st.title('Todays Games and Yesterdays Scores/Leaders')
+
+    teams = []
+    yesterday = []
+    leaders = []
+
+    #today games
+    st.title('Todays Games:')
+    today_score = json.loads(scoreboardv2.ScoreboardV2(day_offset=0).get_json())['resultSets'][0]['rowSet']
+    for row in today_score:
+        teams.append({'Matchup':row[5][-6:-3] + " @ " + row[5][12:15],'Time':row[4],'National TV':row[11],'Home Feed':row[12],'Away Feed':row[13],'Arena':row[15]})
+
+    #teams.insert(0,{'Matchup':"", 'Time':"",'National TV':'','Home Feed':"",'Away Feed':"",'Arena':''})
+    st.table(teams)
+    
+    #yesterday games
+    st.title('Yesterday Scores:')
+    #st.write('Note: Odd number on left is home team')
+
+    yesterday_score = json.loads(scoreboardv2.ScoreboardV2(day_offset=-1).get_json())['resultSets'][0]['rowSet']
+    for row in yesterday_score:
+        yesterday.append({'Matchup':row[5][-6:-3] + " @ " + row[5][12:15],'Time':row[4],'Score':'','National TV':row[11],'Home Feed':row[12],'Away Feed':row[13],'Arena':row[15]})
+
+    st.table(yesterday)
+    #yesterday_score_wild = json.loads(scoreboardv2.ScoreboardV2(day_offset=-1).line_score.get_json())['data']
+    #for row in yesterday_score:
+        #yesterday.append({'Matchup':row[5] + " " + row[6],'Record':row[7],'Score':row[22],'FG%':row[23],'FT%':row[24],'3PT%':row[25],'AST':row[26],'REB':row[27],'TOV':row[28],'Hello':100})
+    #st.table(yesterday)
+
+    #yesterday leaders
+    st.title('Yesterday Leaders:')
+    st.write('Note: Odd number on left is home team')
+    yesterday_leaders = json.loads(scoreboardv2.ScoreboardV2(day_offset=-1).team_leaders.get_json())['data']
+    for row in yesterday_leaders:
+        leaders.append(({'Team':row[2] + " " + row[3],'Scoring Leader':row[6],'Points':row[7],'Rebound Leader':row[9],'Rebounds':row[10],'Assist Leader':row[12],'Assists':row[13]}))
+
+    #leaders.insert(0,{'Team':'','Scoring Leader':'','Points':'','Rebound Leader':'','Rebounds':'','Assist Leader':'','Assists':''})
+    st.table(leaders)
+
+elif page == 'Team Contract Situation':
     st.title('View Team Cap Situation')
 
     location = teams.get_teams()
@@ -44,12 +91,15 @@ if page == 'Team Contract Situation':
         st.write('** Team Option')
 
     players = []
-    with open ('nbaplayersalaries.csv', 'r') as read_obj:
-        csv_reader = reader(read_obj)
-        for row in csv_reader:
-            if row[2] == hello:  
-                players.append({"League Rank":row[0],"Player":row[1],"2020-2021":row[3], "2021-2022":row[4], "2022-2023":row[5], "2023-2024":row[6], "2024-2025":row[7], "2025-26": row[8], "Signed Using":row[9], "Guarenteed":row[10]})          
-    st.table(players)
+
+    if hello != "Select or Type a Team":
+        with open ('nbaplayersalaries.csv', 'r') as read_obj:
+            csv_reader = reader(read_obj)
+            for row in csv_reader:
+                if row[2] == hello:  
+                    players.append({"League Rank":row[0],"Player":row[1],"2020-2021":row[3], "2021-2022":row[4], "2022-2023":row[5], "2023-2024":row[6], "2024-2025":row[7], "2025-26": row[8], "Signed Using":row[9], "Guarenteed":row[10]})          
+        
+            st.table(players)
     
     players = []
     with open ('capspace.csv', 'r') as read_obj:
@@ -63,7 +113,7 @@ if page == 'Team Contract Situation':
     else: 
         st.write(f'Here is the {hello} total team cap in the upcoming seasons.') 
     
-    st.table(players)
+        st.table(players)
 
     if hello == "Select or Type a Team":
         st.write('')
@@ -79,19 +129,31 @@ elif page == 'NBA Contracts':
     st.write("Please choose a player to view contract details or explore list")
     st.write("* Player Option")
     st.write('** Team Option')
+    st.write('')
+    st.write("Choose a Player to View Their Contract")
 
-    player_dict = players.get_players()
+    active_player_dict = players.get_active_players()
 
-    league = players.get_players()
-    for player in league:
+    active_league = players.get_active_players()
+    for player in active_league:
 
-        player_information = [l['full_name'] for l in league]
+        player_active_information = [l['full_name'] for l in active_league]
 
-    player_information.insert(0, "Select or Type a Player")
+    player_active_information.insert(0, "Select or Type a Player")
 
     name = st.selectbox(
         ' ',
-        (player_information))
+        (player_active_information))
+
+    names = []
+
+    with open ('nbaplayersalaries.csv', 'r') as read_obj:
+        csv_reader = reader(read_obj)
+        for row in csv_reader:
+            if row[1] == name:
+                names.append({"Team":row[2],"2020-2021":row[3],"2021-2022":row[4], "2022-2023":row[5], "2023-2024":row[6], "2024-2025":row[7], "2025-2026":row[8], "Signed Using":row[9], "Guarenteed":row[10]})
+
+    st.table(names)
 
     players = []
 
@@ -101,7 +163,6 @@ elif page == 'NBA Contracts':
             players.append({"Player Name":row[1],"Team":row[2],"2020-2021":row[3],"2021-2022":row[4], "2022-2023":row[5], "2023-2024":row[6], "2024-2025":row[7], "2025-2026":row[8], "Signed Using":row[9], "Guarenteed":row[10]})
 
     st.table(players)
-
 elif page == 'Player Information': 
     st.title('Player Information')
 
@@ -110,54 +171,64 @@ elif page == 'Player Information':
     league = players.get_players()
     for player in league:
 
-   		player_information = [l['full_name'] for l in league]
+        player_information = [l['full_name'] for l in league]
 
-    player_information.insert(0, "Select or Type a Player")
+    player_information.insert(0, "Please Select or Type a Players Name")
 
     name = st.selectbox(
         ' ',
         (player_information))
-
-    if name == "Select or Type a Player":
-        st.write('')
-    else:
-        st.write('')
 
     #name = st.text_input("Enter a player name")
     bron = [player for player in player_dict if player['full_name'].lower() == name.lower()]
     if len(bron) > 0:
         bron = bron[0]
 
+    if name != "Please Select or Type a Players Name":
+  
+        players = []
+
     # get players information 
-        player_stats = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).player_headline_stats.get_json())['data'][0][4]
-        st.write(f'Stats: {player_stats}')
-        all_star_appearences = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).player_headline_stats.get_json())['data'][0][6]
-        st.write(f'All Star Appearences: {all_star_appearences}')
-        birthday = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][7]
-        st.write(f'Birthday: {birthday}')
-        college = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][8]
+        player_data = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0]
+        player_stats = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).player_headline_stats.get_json())['data']
+        for row in player_stats: 
+            players.append(({'Points':row[3],'Assists':row[4],'Rebounds':row[5]}))
+        st.write('Season Stats:')
+        st.table(players)   
+        birthday = player_data[7][0:10]
+        dayofbirth = datetime.strptime(birthday, '%Y-%m-%d')
+        diff = datetime.now() - dayofbirth
+        age_info = int(diff.days/365)
+        st.write(f'Age: {age_info} Years Old' + " " + f'(DOB:{birthday})')
+        college = player_data[8]
         st.write(f'Education: {college}')
-        drafted = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][29]
-        drafted_round = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][30]
-        drafted_number = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][31]
-        st.write(f'Drafted: {drafted} Round {drafted_round} Pick {drafted_number}')
-        country = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][9]
+        drafted = player_data[29]
+        drafted_round = player_data[30]
+        drafted_number = player_data[31]
+        if drafted == 'Undrafted':
+            st.write('Draft: Undrafted')
+        else:
+            st.write(f'Drafted: Round {drafted_round}, Pick {drafted_number}, In {drafted} ')
+        current_team = player_data[19]
+        status = player_data[16]
+        if status == 'Inactive':
+            st.write('')
+        else:
+            st.write(f'Team: {current_team}')
+        country = player_data[9]
         st.write(f'Nationality: {country}')
-        current_team = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][19]
-        st.write(f'Most Recent Team: {current_team}')
-        status = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][16]
-        st.write(f'Career Status: {status}')
-        height = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][11]
+        height = player_data[11]
         st.write(f'Height: {height}')
-        weight = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][12]
+        weight = player_data[12]
         st.write(f'Weight: {weight}')
-        position = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][15]
+        position = player_data[15]
         st.write(f'Position: {position}')
-        season_exp = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][13]
-        st.write(f'Experience: {season_exp} Seasons')
-        season_exp = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][24]
-        season_now = json.loads(commonplayerinfo.CommonPlayerInfo(player_id=bron['id']).get_json())['resultSets'][0]['rowSet'][0][25]
-        st.write(f'Active From: {season_exp} to {season_now}')
+        season_exp = player_data[13]
+        season_experience = player_data[24]
+        season_now = player_data[25]
+        st.write(f'Experience: {season_exp} Seasons' + " " + f'(Active From: {season_experience} - {season_now})')
+        
+        #st.write(f'Active From: {season_experience} to {season_now}')
 
 elif page == 'Player Statistics': 
     st.title('Player Statistics')
@@ -169,15 +240,15 @@ elif page == 'Player Statistics':
 
     	player_information = [l['full_name'] for l in league]
 
-    player_information.insert(0, "Select or Type a Player")
+    player_information.insert(0, "Please Select or Type a Players Name")
 
     name = st.selectbox(
-        ' ',
+        '',
         (player_information))
 
     scoring_type = st.selectbox(
-        'Please choose between Totals, PerGame, and Per36',
-        ('Totals', 'PerGame', 'Per36'))
+        'Please choose between PerGame, Totals, and Per36',
+        ('PerGame', 'Totals', 'Per36'))
 
     bron = [player for player in player_dict if player['full_name'].lower() == name.lower()]
     if len(bron) > 0:
@@ -186,16 +257,15 @@ elif page == 'Player Statistics':
     #build empty dictionary
     players = []
 
-    career_stats = json.loads(playercareerstats.PlayerCareerStats(player_id=bron['id'], per_mode36=scoring_type).get_json())['resultSets'][0]['rowSet']
-    for row in career_stats:
-        players.append({'Year':row[1], 'Team': row[4], 'Age': row[5], 'Points': row[26], 'Rebounds':row[20], 'Assists':row[21]})
+    if name != "Please Select or Type a Players Name":
+        career_stats = json.loads(playercareerstats.PlayerCareerStats(player_id=bron['id'], per_mode36=scoring_type).get_json())['resultSets'][0]['rowSet']
+        for row in career_stats:
+            players.append({'Year':row[1], 'Team': row[4], 'Age': row[5], 'GP': row[6], 'Minutes':row[8], 'Points': row[26], 'Rebounds':row[20], 'Assists':row[21], 'Steals':row[22], 'Blocks':row[23], 'TOV':row[24], 'FG%':row[11],'3Pt %':row[14], 'FT%':row[17]})
 
     newlist = sorted(players, key=lambda k: k['Year'], reverse=True)
+    newlist.insert(0,{'Year':"", 'Team':"", 'Age':"", 'GP':"", 'Minutes':"", 'Points':"", 'Rebounds':"", 'Assists':"", 'Steals':"", 'Blocks':"", 'TOV':"", 'FG%':"",'3Pt %':"", 'FT%':""})
 
-    if name == "Select or Type a Player":
-        st.write('')
-    else: 
-        st.table(newlist)
+    st.table(newlist)
 
 elif page == 'Player Shot Chart': 
     st.title("NBA Shot Chart By Season")
@@ -250,30 +320,23 @@ elif page == 'Player Shot Chart':
 
             #Basketball Hoop
             hoop = Circle((0,0), radius=7.5, linewidth=lw, color=color, fill=False)
-
             #backboard 
             backboard = Rectangle((-30, -12.5), 60, 0, linewidth=lw, color=color)
-
             #the paiint 
             #outer box 
             outer_box = Rectangle((-80, -47.5), 160, 190, linewidth=lw, color=color, fill=False)
             #inner box 
             inner_box = Rectangle((-60, -47.5), 120, 190, linewidth=lw, color=color, fill=False)
-
             #freethrow top arc 
             top_free_throw = Arc((0, 142.5), 120, 120, theta1=0, theta2=180, linewidth=lw, color=color, fill=False)
-
             #freethrow bottom arc 
             bottom_free_throw = Arc((0, 142.5), 120, 120, theta1=180, theta2=0, linewidth=lw, color=color)
-
             #restricted zone 
             restricted = Arc((0,0), 80, 80, theta1=0, theta2=180, linewidth=lw, color=color)
-        
             #three point line 
             corner_three_a = Rectangle((-220, -47.5), 0, 140, linewidth=lw, color=color)
             corner_three_b = Rectangle((220, -47.5), 0, 140, linewidth=lw, color=color)
             three_arc = Arc((0,0), 475, 475, theta1=22, theta2=158, linewidth=lw, color=color)
-
             #center court 
             center_outer_arc = Arc((0, 422.5), 120, 120, theta1=180, theta2=0, linewidth=lw, color=color)
             center_inner_arc = Arc((0, 422.5), 40, 40, theta1=180, theta2= 0, linewidth=lw, color=color)
@@ -357,26 +420,74 @@ elif page == 'Player Shot Chart':
 
     st.set_option('deprecation.showPyplotGlobalUse', False)
     st.pyplot()
-
+    
 elif page == 'NBA History':
     st.title('NBA History')
 
+    players = []
+
+    history = st.selectbox(
+        'Please select between the following historical stuff',
+        ('Statistical Records', 'Award History', 'Championship Records'))
+
+    type_of_record = st.selectbox(
+        'Please select a record you would like to see', 
+        ('Assists', 'Points', 'Rebounds', 'Steals', 'Blocks', 'Defensive Rebounds', 'Offensive Rebounds', '3PM','FGM','FG%',
+            'FTM', 'FTA', 'FT%','Games Played','Personal Fouls','Turnovers'))
+
+    permode = st.selectbox(
+        'Please choose between Totals or PerGame',
+        ('Totals', 'PerGame'))
+
+    season_reg = st.selectbox(
+        'Please choose between Regular or Playoffs',
+        ('Regular Season', 'Playoffs'))
+
+    assists = json.loads(alltimeleadersgrids.AllTimeLeadersGrids(season_type=season_reg,per_mode_simple=permode).pts_leaders.get_json())['data']
+    st.write(assists)
+
 elif page == 'Franchise History':
-    st.write('draft history')
-    st.write('franchise history')
-    st.write('team leaders')
-    st.write('team info')
-    st.write('team year by year')
-    st.write('awards')
+    st.title('Franchise History')
+    st.write('Coming Soon')
+    #st.write('draft history')
+    #st.write('franchise history')
+    #st.write('team leaders')
+    #st.write('team info')
+    #st.write('team year by year')
+    #game_log_team = json.loads(teamgamelog.TeamGameLog(season="2019-20", season_type_all_star="Regular Season", team_id="1610612737").get_json())['resultSets'][0]['rowSet']
+    #st.table(game_log_team)
+    #st.write('awards')
 
 elif page == 'Draft History':
     st.title('Draft History')
+
+    players = []
+    
+    years = []
+    for year in range (2020,1946, -1):
+        years.append(str(year))
+
+    years.insert(0, "")
+
+    jonnyissexy = st.selectbox(
+        'Please Choose a Season to View Draft Recap',
+        years)
+
+    if jonnyissexy != '':
+        draft_history = json.loads(drafthistory.DraftHistory(league_id='',season_year_nullable=jonnyissexy).get_json())['resultSets'][0]['rowSet']
+        for row in draft_history:
+            if row[2] == jonnyissexy: 
+                players.append({"Player":row[1], "Round":row[3], "Pick in Round":row[4], "City":row[8], "Team":row[9], "College/Other":row[11]})
+
+        players.insert(0,{'Player':"", 'Round':"", 'Pick in Round':"", 'City':"",'Team':"", 'College/Other':""})
+
+        st.table(players)
 
 elif page == 'League Standings':
     st.title("League Standings")
 
     years = []
-    for year in range (2019,1969, -1):
+    for year in range (2020,1969, -1):
         years.append(str(year) + "-" + (str(year+1)[-2:]))
 
     jonnyissexy = st.selectbox(
@@ -402,7 +513,7 @@ elif page == 'League Standings':
             teams.append({'Team':row[3] + " " + row[4], 'Conference': row[5], 'Record':row[16], 'Home Record':row[17], 'Away Record':row[18], 'Last 10': row[19],'Clinch Indicator':row[8], 'Playoff Seed':row[7], 'PPG':row[56],'Opp PPG':row[57], 'Point Diff.':row[58],'Conference Record': row[6],  'Longest Winning Streak':row[29], 'Longest Losing Streak':row[30]})
 
     #ppg = 'PPG':row[56]
-    #ppg_no_zero = str(round(ppg, 2))
+    #ppg_no_zero = str(round(ppg,2))
 
     newlist = sorted(teams, key=lambda k: k['Record'], reverse=True)
 
@@ -410,10 +521,8 @@ elif page == 'League Standings':
 
     st.table(newlist)
 else: 
-    st.title('What can I do with this app?')
+    st.write('View teams contract sitatuations, draft history, current and past standings, player information, and NBA/Franchise history')
     st.write('Made by Josh with help from Jonny')
     st.write('Contract Data Courtesy of basketballreference.com')
-
-
-from nba_api.stats.library import http
-print(http.STATS_HEADERS)
+    st.write('Other information courtesy of NBA_API by Swar')
+    st.write('TTP')
